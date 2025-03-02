@@ -66,16 +66,16 @@ def validate_and_store_api_key(api_key):
     """Validates the API key and stores it in local storage if valid."""
     openai.api_key = api_key
     try:
-        openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "system", "content": "API Key validation test."}]
-        )
-        st.session_state["openai_api_key"] = api_key
-        st.query_params["api_key"] = api_key  # Store key in local storage
-        st.success("API Key validated and saved successfully!")
-        st.rerun()
-    except openai.OpenAIError:
+        response = openai.models.list()
+        if response:
+            st.session_state["openai_api_key"] = api_key
+            st.query_params["api_key"] = api_key  # Store key in local storage
+            st.success("API Key validated and saved successfully!")
+            st.rerun()
+    except openai.error.AuthenticationError:
         st.error("Invalid API Key! Please enter a valid one.")
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
 
 # Ask for API key only if not already stored
 if not st.session_state["openai_api_key"]:
@@ -104,9 +104,12 @@ def chat_with_ai(prompt, use_memory=False):
             messages=messages
         )
         reply = response["choices"][0]["message"]["content"]
-    except openai.error.OpenAIError:
+    except openai.error.AuthenticationError:
         st.error("Invalid API Key! Please update your key.")
         return "Invalid API Key"
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
+        return "Error processing request"
     
     if use_memory:
         st.session_state["chat_memory"] = messages + [{"role": "assistant", "content": reply}]
