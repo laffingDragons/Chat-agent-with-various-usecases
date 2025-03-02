@@ -39,11 +39,19 @@ st.markdown(
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
             width: 600px;
             max-width: 90%;
+            position: relative;
         }
         .input-container {
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
         }
     </style>
     """,
@@ -63,7 +71,7 @@ def save_api_key():
     if st.button("Save API Key"):
         st.session_state["openai_api_key"] = new_key
         st.experimental_set_query_params(api_key=new_key)
-        st.success("API Key Saved! Please refresh if UI is not enabled.")
+        st.success("API Key Saved! It will persist even after refresh.")
         st.rerun()
 
 save_api_key()
@@ -89,7 +97,7 @@ def chat_with_ai(prompt, use_memory=False):
             messages=messages
         )
         reply = response["choices"][0]["message"]["content"]
-    except openai.error.AuthenticationError:
+    except openai.error.OpenAIError:
         st.error("Invalid API Key! Please update your key.")
         return "Invalid API Key"
     
@@ -131,6 +139,7 @@ st.markdown("""</div>""", unsafe_allow_html=True)
 # Modal Chat Window
 if "show_modal" in st.session_state and st.session_state["show_modal"]:
     st.markdown("""<div class='chat-modal'>""", unsafe_allow_html=True)
+    st.markdown("<span class='close-button' onclick='window.location.reload()'>✖</span>", unsafe_allow_html=True)
     st.subheader(st.session_state["active_use_case"])
     with st.container():
         col1, col2 = st.columns([4, 1])
@@ -139,6 +148,4 @@ if "show_modal" in st.session_state and st.session_state["show_modal"]:
     if send_button:
         response = chat_with_ai(user_input, use_memory=(st.session_state["active_use_case"] == "Chat Agent with Memory / Context of Previous Conversation"))
         st.text_area("AI Response:", response, height=200)
-    if st.button("Close"):
-        st.session_state["show_modal"] = False
     st.markdown("""</div>""", unsafe_allow_html=True)
