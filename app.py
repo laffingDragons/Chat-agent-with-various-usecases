@@ -50,18 +50,27 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Force user to enter API Key before accessing UI
-if "openai_api_key" not in st.session_state or not st.session_state["openai_api_key"]:
-    st.session_state["openai_api_key"] = st.text_input(
+# Store API Key in Local Storage
+if "openai_api_key" not in st.session_state:
+    st.session_state["openai_api_key"] = st.experimental_get_query_params().get("api_key", [""])[0]
+
+def save_api_key():
+    new_key = st.text_input(
         "Enter your OpenAI API Key (for GPT-4 or GPT-3.5 Turbo)",
+        value=st.session_state["openai_api_key"],
         type="password"
     )
-    if st.session_state["openai_api_key"]:
+    if st.button("Save API Key"):
+        st.session_state["openai_api_key"] = new_key
+        st.experimental_set_query_params(api_key=new_key)
         st.success("API Key Saved! Please refresh if UI is not enabled.")
         st.rerun()
-    else:
-        st.warning("API Key is required to proceed!")
-        st.stop()
+
+save_api_key()
+
+if not st.session_state["openai_api_key"]:
+    st.warning("API Key is required to proceed!")
+    st.stop()
 
 # Function to interact with OpenAI API
 def chat_with_ai(prompt, use_memory=False):
@@ -74,12 +83,15 @@ def chat_with_ai(prompt, use_memory=False):
         memory = st.session_state["chat_memory"]
     
     messages = memory + [{"role": "user", "content": prompt}]
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=messages
-    )
-    
-    reply = response["choices"][0]["message"]["content"]
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=messages
+        )
+        reply = response["choices"][0]["message"]["content"]
+    except openai.error.AuthenticationError:
+        st.error("Invalid API Key! Please update your key.")
+        return "Invalid API Key"
     
     if use_memory:
         st.session_state["chat_memory"] = messages + [{"role": "assistant", "content": reply}]
@@ -110,7 +122,6 @@ cols = st.columns(4)
 
 for idx, use_case in enumerate(use_cases):
     with cols[idx % 4]:
-        st.markdown(f"""<div class='card' style='background-color:{pastel_colors[idx % len(pastel_colors)]};' onclick='document.getElementById("btn_{idx}").click();'>{use_case}</div>""", unsafe_allow_html=True)
         if st.button(use_case, key=f"btn_{idx}", help="Click to open chat"):
             st.session_state["active_use_case"] = use_case
             st.session_state["show_modal"] = True
