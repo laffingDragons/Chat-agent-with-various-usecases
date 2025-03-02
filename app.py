@@ -85,14 +85,16 @@ def validate_and_store_api_key(api_key):
             st.query_params["api_key"] = api_key  # Store key in local storage
             st.success("API Key validated and saved successfully!")
             st.rerun()
-    except openai.OpenAIError:
+    except openai.error.AuthenticationError:
         st.error("Invalid API Key! Please enter a valid one.")
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
 
-# Edit API Key Option
-st.sidebar.subheader("🔑 Edit API Key")
-api_key_input = st.sidebar.text_input("Update OpenAI API Key", type="password", value=st.session_state["openai_api_key"])
-if st.sidebar.button("Save API Key"):
-    validate_and_store_api_key(api_key_input)
+# Collapsible API Key Section
+with st.expander("🔑 Edit API Key"):
+    api_key_input = st.text_input("Update OpenAI API Key", type="password", value=st.session_state["openai_api_key"])
+    if st.button("Save API Key"):
+        validate_and_store_api_key(api_key_input)
 
 if not st.session_state["openai_api_key"]:
     st.warning("API Key is required to proceed!")
@@ -115,7 +117,7 @@ def chat_with_ai(prompt, use_memory=False):
             messages=messages
         )
         reply = response["choices"][0]["message"]["content"]
-    except openai.OpenAIError:
+    except openai.error.AuthenticationError:
         st.error("Invalid API Key! Please update your key.")
         return "Invalid API Key"
     except Exception as e:
@@ -150,6 +152,7 @@ cols = st.columns(4)
 
 for idx, use_case in enumerate(use_cases):
     with cols[idx % 4]:
+        st.markdown(f"""<div class='card' style='background-color:{pastel_colors[idx % len(pastel_colors)]};' onclick='window.location.reload()'>{use_case}</div>""", unsafe_allow_html=True)
         if st.button(use_case, key=f"btn_{idx}", help="Click to open chat"):
             st.session_state["active_use_case"] = use_case
             st.session_state["show_modal"] = True
