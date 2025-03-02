@@ -12,13 +12,26 @@ st.markdown(
         body {
             background-color: #F8F9FA;
         }
-        .card {
-            background-color: #FFFFFF;
-            border-radius: 15px;
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
             padding: 20px;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+        }
+        .card {
+            width: 300px;
+            height: 200px;
+            background-color: #FFC3A0;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
         }
         .chat-modal {
             background-color: #FFFFFF;
@@ -33,20 +46,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Store API Key in Local Storage
-if "openai_api_key" not in st.session_state:
-    st.session_state["openai_api_key"] = ""
-
-def save_api_key():
+# Force user to enter API Key before accessing UI
+if "openai_api_key" not in st.session_state or not st.session_state["openai_api_key"]:
     st.session_state["openai_api_key"] = st.text_input(
         "Enter your OpenAI API Key (for GPT-3.5 Turbo)",
-        value=st.session_state["openai_api_key"],
         type="password"
     )
     if st.session_state["openai_api_key"]:
-        st.success("API Key Saved!")
-
-save_api_key()
+        st.success("API Key Saved! Please refresh if UI is not enabled.")
+        st.experimental_rerun()
+    else:
+        st.warning("API Key is required to proceed!")
+        st.stop()
 
 # Function to interact with OpenAI API
 def chat_with_ai(prompt, use_memory=False):
@@ -83,16 +94,23 @@ use_cases = [
     "Chat Agent with Memory / Context of Previous Conversation"
 ]
 
+# Define different pastel colors for cards
+pastel_colors = ["#FFC3A0", "#B5EAD7", "#FFDAC1", "#C7CEEA", "#FF9AA2", "#FFB7B2", "#E2F0CB", "#B4A7D6"]
+
 # UI Layout
 st.title("AI Use Cases Dashboard")
+
+st.markdown("""<div class='card-container'>""", unsafe_allow_html=True)
 
 cols = st.columns(4)
 
 for idx, use_case in enumerate(use_cases):
     with cols[idx % 4]:
-        if st.button(use_case, key=f"btn_{idx}"):
+        if st.button(use_case, key=f"btn_{idx}", help="Click to open chat"):
             st.session_state["active_use_case"] = use_case
             st.session_state["show_modal"] = True
+
+st.markdown("""</div>""", unsafe_allow_html=True)
 
 # Modal Chat Window
 if "show_modal" in st.session_state and st.session_state["show_modal"]:
