@@ -85,7 +85,7 @@ def validate_and_store_api_key(api_key):
             st.query_params["api_key"] = api_key  # Store key in local storage
             st.success("API Key validated and saved successfully!")
             st.rerun()
-    except openai.error.AuthenticationError:
+    except openai.AuthenticationError:
         st.error("Invalid API Key! Please enter a valid one.")
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
@@ -113,7 +113,7 @@ def chat_with_ai(prompt, use_memory=False):
     messages = memory + [{"role": "user", "content": prompt}]
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=messages
         )
         reply = response["choices"][0]["message"]["content"]
