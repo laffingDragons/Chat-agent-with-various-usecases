@@ -88,11 +88,11 @@ def validate_and_store_api_key(api_key):
     except openai.OpenAIError:
         st.error("Invalid API Key! Please enter a valid one.")
 
-# Option to Edit API Key
-with st.expander("🔑 Edit API Key"):
-    api_key_input = st.text_input("Enter your OpenAI API Key (for GPT-4 or GPT-3.5 Turbo)", type="password", value=st.session_state["openai_api_key"])
-    if st.button("Save API Key"):
-        validate_and_store_api_key(api_key_input)
+# Edit API Key Option
+st.sidebar.subheader("🔑 Edit API Key")
+api_key_input = st.sidebar.text_input("Update OpenAI API Key", type="password", value=st.session_state["openai_api_key"])
+if st.sidebar.button("Save API Key"):
+    validate_and_store_api_key(api_key_input)
 
 if not st.session_state["openai_api_key"]:
     st.warning("API Key is required to proceed!")
@@ -150,7 +150,6 @@ cols = st.columns(4)
 
 for idx, use_case in enumerate(use_cases):
     with cols[idx % 4]:
-        st.markdown(f"""<div class='card' style='background-color:{pastel_colors[idx % len(pastel_colors)]};' onclick='window.location.reload()'>{use_case}</div>""", unsafe_allow_html=True)
         if st.button(use_case, key=f"btn_{idx}", help="Click to open chat"):
             st.session_state["active_use_case"] = use_case
             st.session_state["show_modal"] = True
@@ -160,13 +159,12 @@ st.markdown("""</div>""", unsafe_allow_html=True)
 # Modal Chat Window
 if "show_modal" in st.session_state and st.session_state["show_modal"]:
     st.markdown("""<div class='chat-modal'>""", unsafe_allow_html=True)
-    st.markdown("<span class='close-button' onclick='window.location.reload()'>✖</span>", unsafe_allow_html=True)
+    if st.button("✖", key="close_modal"):
+        st.session_state["show_modal"] = False
+        st.rerun()
     st.subheader(st.session_state["active_use_case"])
-    with st.container():
-        col1, col2 = st.columns([4, 1])
-        user_input = col1.text_input("Enter your query:", key="user_input")
-        send_button = col2.button("Send")
-    if send_button:
+    user_input = st.text_input("", key="user_input")
+    if st.button("Send"):
         response = chat_with_ai(user_input, use_memory=(st.session_state["active_use_case"] == "Chat Agent with Memory / Context of Previous Conversation"))
         st.text_area("AI Response:", response, height=200)
     st.markdown("""</div>""", unsafe_allow_html=True)
