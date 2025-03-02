@@ -19,21 +19,6 @@ st.markdown(
             gap: 15px;
             padding: 15px;
         }
-        .card {
-            width: 90%;
-            max-width: 300px;
-            height: 120px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            border: none;
-        }
         .chat-modal {
             background-color: #FFFFFF;
             border-radius: 15px;
@@ -60,11 +45,6 @@ st.markdown(
             .card-container {
                 flex-direction: column;
                 align-items: center;
-            }
-            .card {
-                width: 100%;
-                max-width: 90%;
-                height: 100px;
             }
         }
     </style>
@@ -118,7 +98,7 @@ def chat_with_ai(prompt, use_memory=False):
             messages=messages
         )
         reply = response.choices[0].message.content
-    except openai.error.AuthenticationError:
+    except openai.AuthenticationError:
         st.error("Invalid API Key! Please update your key.")
         return "Invalid API Key"
     except Exception as e:
@@ -153,9 +133,14 @@ cols = st.columns(4)
 
 for idx, use_case in enumerate(use_cases):
     with cols[idx % 4]:
-        if st.button(use_case, key=f"btn_{idx}", help="Click to open chat",
-                     use_container_width=True, 
-                     args=(use_case,)):
+        st.markdown(f"""
+            <button style='width:100%; height:80px; background-color:{pastel_colors[idx % len(pastel_colors)]};
+            border:none; border-radius:10px; font-size:16px; font-weight:bold; cursor:pointer;' 
+            onclick='window.location.reload()'>
+                {use_case}
+            </button>
+        """, unsafe_allow_html=True)
+        if st.button(use_case, key=f"btn_{idx}", help="Click to open chat"):
             st.session_state["active_use_case"] = use_case
             st.session_state["show_modal"] = True
 
