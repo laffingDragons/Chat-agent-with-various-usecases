@@ -53,8 +53,8 @@ if "openai_api_key" not in st.session_state or not st.session_state["openai_api_
         type="password"
     )
     if st.session_state["openai_api_key"]:
-        st.success("API Key Saved! Please refresh if UI is not enabled.")
-        st.experimental_rerun()
+    st.success("API Key Saved! Please refresh if UI is not enabled.")
+    st.rerun()
     else:
         st.warning("API Key is required to proceed!")
         st.stop()
