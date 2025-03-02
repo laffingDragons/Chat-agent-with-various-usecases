@@ -117,7 +117,7 @@ def chat_with_ai(prompt, use_memory=False):
             messages=messages
         )
         reply = response["choices"][0]["message"]["content"]
-    except openai.error.AuthenticationError:
+    except openai.AuthenticationError:
         st.error("Invalid API Key! Please update your key.")
         return "Invalid API Key"
     except Exception as e:
