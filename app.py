@@ -1,8 +1,12 @@
 import streamlit as st
 import openai
-from openai import OpenAI
 import requests
 import json
+import os
+import sys
+
+# First thing: add this environment variable to disable Pillow requirement
+os.environ['STREAMLIT_IMAGE_MODE'] = 'url'
 
 # Set Streamlit Page Config
 st.set_page_config(page_title="AI Use Cases Dashboard", layout="wide")
@@ -11,13 +15,39 @@ st.set_page_config(page_title="AI Use Cases Dashboard", layout="wide")
 st.markdown(
     """
     <style>
-        .stButton > button {
-            height: 120px !important;
-            font-size: 18px !important;
-            font-weight: bold !important;
-            border-radius: 15px !important;
-            margin: 10px 0 !important;
-            width: 100% !important;
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .custom-button {
+            height: 120px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 15px;
+            margin: 5px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: transform 0.2s;
+            color: black;
+            border: none;
+            width: 100%;
+        }
+        .custom-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.15);
+        }
+        .chat-container {
+            background-color: #FFFFFF;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            position: relative;
         }
         .chat-history {
             max-height: 400px;
@@ -39,10 +69,28 @@ st.markdown(
             border-radius: 10px;
             margin: 5px 0;
         }
+        .close-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #555;
+        }
+        .img-container {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .img-container img {
+            max-width: 100%;
+            border-radius: 10px;
+        }
         @media (max-width: 768px) {
-            .stButton > button {
-                height: 100px !important;
-                font-size: 16px !important;
+            .custom-button {
+                height: 100px;
+                font-size: 16px;
             }
         }
     </style>
@@ -73,12 +121,19 @@ if "api_key_expanded" not in st.session_state:
 def validate_and_store_api_key(api_key):
     """Validates the API key and stores it in session state if valid."""
     try:
-        client = OpenAI(api_key=api_key)
-        response = client.models.list()
-        if response:
+        openai.api_key = api_key
+        # Try a simple request to validate the key
+        response = requests.get(
+            "https://api.openai.com/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"}
+        )
+        if response.status_code == 200:
             st.session_state["openai_api_key"] = api_key
             st.session_state["api_key_expanded"] = False  # Auto-collapse after successful validation
             return True
+        else:
+            st.error(f"API Key validation failed. Status code: {response.status_code}")
+            return False
     except Exception as e:
         st.error(f"API Key validation failed: {str(e)}")
         return False
@@ -90,7 +145,7 @@ with api_key_expander:
     if st.button("Save API Key"):
         if validate_and_store_api_key(api_key_input):
             st.success("API Key validated and saved successfully!")
-            st.rerun()
+            st.experimental_rerun()
 
 # Check for API key before proceeding
 if not st.session_state["openai_api_key"]:
@@ -100,31 +155,55 @@ if not st.session_state["openai_api_key"]:
 # Function to generate completion text
 def generate_completion(prompt, max_tokens=3000, outputs=1):
     try:
-        client = OpenAI(api_key=st.session_state["openai_api_key"])
-        response = client.completions.create(
-            model="gpt-3.5-turbo-instruct",
-            prompt=prompt,
-            max_tokens=max_tokens,
-            n=outputs
+        headers = {
+            "Authorization": f"Bearer {st.session_state['openai_api_key']}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "gpt-3.5-turbo-instruct",
+            "prompt": prompt,
+            "max_tokens": max_tokens,
+            "n": outputs
+        }
+        response = requests.post(
+            "https://api.openai.com/v1/completions",
+            headers=headers,
+            json=data
         )
-        
-        output = []
-        for choice in response.choices:
-            output.append(choice.text.strip())
-        return output
+        if response.status_code == 200:
+            result = response.json()
+            output = []
+            for choice in result.get("choices", []):
+                output.append(choice.get("text", "").strip())
+            return output
+        else:
+            return [f"Error: API returned status code {response.status_code}"]
     except Exception as e:
         return [f"Error: {str(e)}"]
 
 # Function to generate images
 def generate_image(prompt, size="512x512"):
     try:
-        client = OpenAI(api_key=st.session_state["openai_api_key"])
-        response = client.images.generate(
-            prompt=prompt,
-            n=1,
-            size=size
+        headers = {
+            "Authorization": f"Bearer {st.session_state['openai_api_key']}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "prompt": prompt,
+            "n": 1,
+            "size": size
+        }
+        response = requests.post(
+            "https://api.openai.com/v1/images/generations",
+            headers=headers,
+            json=data
         )
-        return response.data[0].url
+        if response.status_code == 200:
+            result = response.json()
+            return result.get("data", [{}])[0].get("url", None)
+        else:
+            st.error(f"Image generation failed: API returned status code {response.status_code}")
+            return None
     except Exception as e:
         st.error(f"Image generation failed: {str(e)}")
         return None
@@ -132,8 +211,6 @@ def generate_image(prompt, size="512x512"):
 # Function to interact with OpenAI API for chat
 def chat_with_ai(prompt, use_case, use_memory=False):
     try:
-        client = OpenAI(api_key=st.session_state["openai_api_key"])
-        
         # Prepare messages based on use case
         messages = []
         
@@ -160,25 +237,38 @@ def chat_with_ai(prompt, use_case, use_memory=False):
         # Add the current user message
         messages.append({"role": "user", "content": prompt})
         
-        # Make API call
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages
+        # Make API call directly without the OpenAI SDK
+        headers = {
+            "Authorization": f"Bearer {st.session_state['openai_api_key']}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "gpt-3.5-turbo",
+            "messages": messages
+        }
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=data
         )
         
-        reply = response.choices[0].message.content
-        
-        # Update chat memory if using memory
-        if use_memory:
-            # Only store the last few messages to prevent context length issues
-            if len(st.session_state["chat_memory"]) > 8:  # Keep last 4 exchanges (8 messages)
-                st.session_state["chat_memory"] = st.session_state["chat_memory"][-8:]
+        if response.status_code == 200:
+            result = response.json()
+            reply = result.get("choices", [{}])[0].get("message", {}).get("content", "")
             
-            st.session_state["chat_memory"].append({"role": "user", "content": prompt})
-            st.session_state["chat_memory"].append({"role": "assistant", "content": reply})
-        
-        return reply
-        
+            # Update chat memory if using memory
+            if use_memory:
+                # Only store the last few messages to prevent context length issues
+                if len(st.session_state["chat_memory"]) > 8:  # Keep last 4 exchanges (8 messages)
+                    st.session_state["chat_memory"] = st.session_state["chat_memory"][-8:]
+                
+                st.session_state["chat_memory"].append({"role": "user", "content": prompt})
+                st.session_state["chat_memory"].append({"role": "assistant", "content": reply})
+            
+            return reply
+        else:
+            return f"Error: API returned status code {response.status_code}"
+            
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -202,7 +292,6 @@ use_cases = [
     "Chat Agent with Memory"
 ]
 
-# Define button colors
 button_colors = [
     "#FFB6C1",  # Light Pink
     "#FFD700",  # Gold
@@ -222,37 +311,14 @@ cols = st.columns(4)
 for idx, use_case in enumerate(use_cases):
     color = button_colors[idx % len(button_colors)]
     with cols[idx % 4]:
-        # Custom HTML button with inline styling for color
-        st.markdown(
-            f"""
-            <button 
-                onclick="this.classList.toggle('clicked'); window.parent.postMessage({{type: 'streamlit:setComponentValue', value: '{use_case}'}}, '*');" 
-                style="
-                    background-color: {color}; 
-                    color: black; 
-                    width: 100%; 
-                    height: 120px; 
-                    border-radius: 15px; 
-                    border: none; 
-                    font-weight: bold;
-                    font-size: 18px;
-                    cursor: pointer;
-                    transition: transform 0.3s;
-                    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-                "
-                onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0px 6px 12px rgba(0, 0, 0, 0.15)';"
-                onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0px 4px 6px rgba(0, 0, 0, 0.1)';"
-            >
-                {use_case}
-            </button>
-            """,
-            unsafe_allow_html=True
-        )
-        
-        # Hidden button that actually captures the click
-        if st.button(use_case, key=f"btn_{idx}", label_visibility="collapsed"):
-            select_use_case(use_case)
-            st.rerun()
+        if st.button(
+            use_case, 
+            key=f"btn_{idx}",
+            on_click=select_use_case,
+            args=(use_case,),
+            help=f"Start chatting with {use_case}"
+        ):
+            pass
 
 # Chat interface
 if st.session_state["show_chat"] and st.session_state["active_use_case"]:
@@ -265,21 +331,22 @@ if st.session_state["show_chat"] and st.session_state["active_use_case"]:
     with col2:
         if st.button("✖", key="close_button", help="Close chat"):
             st.session_state["show_chat"] = False
-            st.rerun()
+            st.experimental_rerun()
     
     # Display chat history
     if st.session_state["chat_history"]:
-        st.markdown('<div class="chat-history">', unsafe_allow_html=True)
+        chat_history_html = '<div class="chat-history">'
         for message in st.session_state["chat_history"]:
             if message["role"] == "user":
-                st.markdown(f'<div class="user-message"><strong>You:</strong> {message["content"]}</div>', unsafe_allow_html=True)
+                chat_history_html += f'<div class="user-message"><strong>You:</strong> {message["content"]}</div>'
             elif message["role"] == "assistant":
                 if message.get("is_image", False):
-                    st.markdown(f'<div class="ai-message"><strong>AI:</strong> Generated image:</div>', unsafe_allow_html=True)
-                    st.image(message["content"])
+                    chat_history_html += f'<div class="ai-message"><strong>AI:</strong> Generated image:</div>'
+                    chat_history_html += f'<div class="img-container"><a href="{message["content"]}" target="_blank"><img src="{message["content"]}" alt="Generated image"></a></div>'
                 else:
-                    st.markdown(f'<div class="ai-message"><strong>AI:</strong> {message["content"]}</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+                    chat_history_html += f'<div class="ai-message"><strong>AI:</strong> {message["content"]}</div>'
+        chat_history_html += '</div>'
+        st.markdown(chat_history_html, unsafe_allow_html=True)
     
     # Chat input
     active_use_case = st.session_state["active_use_case"]
@@ -296,11 +363,9 @@ if st.session_state["show_chat"] and st.session_state["active_use_case"]:
     else:
         placeholder_text = "Type your message here..."
     
-    with st.form(key="chat_form", clear_on_submit=True):
-        user_input = st.text_area("Your message:", placeholder=placeholder_text, key="user_input", height=100)
-        submit_button = st.form_submit_button("Send")
-        
-        if submit_button and user_input.strip():
+    user_input = st.text_area("Your message:", placeholder=placeholder_text, key="user_input", height=100)
+    if st.button("Send", key="send_button"):
+        if user_input.strip():
             # Handle different use cases
             is_memory_enabled = "Memory" in active_use_case and "No Memory" not in active_use_case
             
@@ -333,7 +398,7 @@ if st.session_state["show_chat"] and st.session_state["active_use_case"]:
                     "content": response
                 })
             
-            st.rerun()
+            st.experimental_rerun()
 
 # Add information at the bottom
 st.markdown("---")
