@@ -58,26 +58,33 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Store API Key in Local Storage
+# Check if API Key exists in local storage
 if "openai_api_key" not in st.session_state:
-    st.session_state["openai_api_key"] = st.experimental_get_query_params().get("api_key", [""])[0]
+    st.session_state["openai_api_key"] = st.query_params.get("api_key", [""])[0]
 
-def save_api_key():
-    new_key = st.text_input(
+def validate_and_store_api_key(api_key):
+    """Validates the API key and stores it in local storage if valid."""
+    openai.api_key = api_key
+    try:
+        openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "system", "content": "API Key validation test."}]
+        )
+        st.session_state["openai_api_key"] = api_key
+        st.query_params["api_key"] = api_key  # Store key in local storage
+        st.success("API Key validated and saved successfully!")
+        st.rerun()
+    except openai.error.OpenAIError:
+        st.error("Invalid API Key! Please enter a valid one.")
+
+# Ask for API key only if not already stored
+if not st.session_state["openai_api_key"]:
+    api_key_input = st.text_input(
         "Enter your OpenAI API Key (for GPT-4 or GPT-3.5 Turbo)",
-        value=st.session_state["openai_api_key"],
         type="password"
     )
     if st.button("Save API Key"):
-        st.session_state["openai_api_key"] = new_key
-        st.experimental_set_query_params(api_key=new_key)
-        st.success("API Key Saved! It will persist even after refresh.")
-        st.rerun()
-
-save_api_key()
-
-if not st.session_state["openai_api_key"]:
-    st.warning("API Key is required to proceed!")
+        validate_and_store_api_key(api_key_input)
     st.stop()
 
 # Function to interact with OpenAI API
