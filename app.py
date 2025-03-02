@@ -1,16 +1,11 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
-from streamlit_extras.switch_page_button import switch_page
 import openai
 from openai import OpenAI
 import requests
-from PIL import Image
-from io import BytesIO
-import base64
 import json
 import os
 from streamlit_option_menu import option_menu
-from streamlit_modal import Modal
 
 # Set Streamlit Page Config
 st.set_page_config(page_title="AI Use Cases Dashboard", layout="wide")
@@ -294,22 +289,15 @@ if st.session_state["show_chat"] and st.session_state["active_use_case"]:
     
     chat_container = st.container()
     with chat_container:
-        st.markdown(
-            f"""
-            <div class="chat-container">
-                <button class="close-icon" onclick="window.location.reload()">✖</button>
-                <h3>{st.session_state['active_use_case']}</h3>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+        col1, col2 = st.columns([0.95, 0.05])
+        with col1:
+            st.subheader(st.session_state['active_use_case'])
         
-        # Close button (X icon)
-        if st.button("✖", key="close_button", help="Close chat"):
-            st.session_state["show_chat"] = False
-            st.rerun()
-        
-        st.subheader(st.session_state['active_use_case'])
+        with col2:
+            # Close button (X icon)
+            if st.button("✖", key="close_button", help="Close chat"):
+                st.session_state["show_chat"] = False
+                st.rerun()
         
         # Display chat history
         if st.session_state["chat_history"]:
@@ -321,7 +309,7 @@ if st.session_state["show_chat"] and st.session_state["active_use_case"]:
                     # Check if this is an image URL
                     if message.get("is_image", False):
                         st.markdown(f'<div class="ai-message"><strong>AI:</strong> Generated image:</div>', unsafe_allow_html=True)
-                        st.image(message["content"], caption="Generated image")
+                        st.image(message["content"])
                     else:
                         st.markdown(f'<div class="ai-message"><strong>AI:</strong> {message["content"]}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
