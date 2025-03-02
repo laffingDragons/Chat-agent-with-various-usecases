@@ -74,7 +74,7 @@ def validate_and_store_api_key(api_key):
         st.query_params["api_key"] = api_key  # Store key in local storage
         st.success("API Key validated and saved successfully!")
         st.rerun()
-    except openai.error.OpenAIError:
+    except openai.OpenAIError:
         st.error("Invalid API Key! Please enter a valid one.")
 
 # Ask for API key only if not already stored
