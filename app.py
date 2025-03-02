@@ -22,7 +22,6 @@ st.markdown(
         .card {
             width: 300px;
             height: 200px;
-            background-color: #FFC3A0;
             border-radius: 15px;
             display: flex;
             align-items: center;
@@ -41,6 +40,11 @@ st.markdown(
             width: 600px;
             max-width: 90%;
         }
+        .input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -49,7 +53,7 @@ st.markdown(
 # Force user to enter API Key before accessing UI
 if "openai_api_key" not in st.session_state or not st.session_state["openai_api_key"]:
     st.session_state["openai_api_key"] = st.text_input(
-        "Enter your OpenAI API Key (for GPT-3.5 Turbo)",
+        "Enter your OpenAI API Key (for GPT-4 or GPT-3.5 Turbo)",
         type="password"
     )
     if st.session_state["openai_api_key"]:
@@ -71,7 +75,7 @@ def chat_with_ai(prompt, use_memory=False):
     
     messages = memory + [{"role": "user", "content": prompt}]
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4",
         messages=messages
     )
     
@@ -106,6 +110,7 @@ cols = st.columns(4)
 
 for idx, use_case in enumerate(use_cases):
     with cols[idx % 4]:
+        st.markdown(f"""<div class='card' style='background-color:{pastel_colors[idx % len(pastel_colors)]};' onclick='document.getElementById("btn_{idx}").click();'>{use_case}</div>""", unsafe_allow_html=True)
         if st.button(use_case, key=f"btn_{idx}", help="Click to open chat"):
             st.session_state["active_use_case"] = use_case
             st.session_state["show_modal"] = True
@@ -116,8 +121,11 @@ st.markdown("""</div>""", unsafe_allow_html=True)
 if "show_modal" in st.session_state and st.session_state["show_modal"]:
     st.markdown("""<div class='chat-modal'>""", unsafe_allow_html=True)
     st.subheader(st.session_state["active_use_case"])
-    user_input = st.text_input("Enter your query:")
-    if st.button("Send"):
+    with st.container():
+        col1, col2 = st.columns([4, 1])
+        user_input = col1.text_input("Enter your query:", key="user_input")
+        send_button = col2.button("Send")
+    if send_button:
         response = chat_with_ai(user_input, use_memory=(st.session_state["active_use_case"] == "Chat Agent with Memory / Context of Previous Conversation"))
         st.text_area("AI Response:", response, height=200)
     if st.button("Close"):
