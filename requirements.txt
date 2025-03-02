@@ -1,3 +1,4 @@
-streamlit
-openai
-json
+streamlit>=1.10.0
+openai>=0.28
+requests>=2.32.3
+pillow>=9.0.0
