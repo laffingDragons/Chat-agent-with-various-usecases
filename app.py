@@ -1,8 +1,9 @@
-import streamlit as st
-import openai
+import streamlit as st 
+from openai import OpenAI, OpenAIError, AuthenticationError
+
 import json
 
-# Set Streamlit Page Config
+# Set Streamlit Page Config 
 st.set_page_config(page_title="AI Use Cases Dashboard", layout="wide")
 
 # Custom Styling for Mobile & Desktop
@@ -58,16 +59,18 @@ if "openai_api_key" not in st.session_state:
 
 def validate_and_store_api_key(api_key):
     """Validates the API key and stores it in local storage if valid."""
-    openai.api_key = api_key
+    client = OpenAI(api_key=api_key)
     try:
-        response = openai.models.list()
+        response = client.models.list()
         if response:
             st.session_state["openai_api_key"] = api_key
             st.query_params["api_key"] = api_key  # Store key in local storage
             st.success("API Key validated and saved successfully!")
             st.rerun()
-    except openai.AuthenticationError:
+    except AuthenticationError:
         st.error("Invalid API Key! Please enter a valid one.")
+    except OpenAIError as e:
+        st.error(f"OpenAI error: {e}")
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
 
@@ -83,31 +86,32 @@ if not st.session_state["openai_api_key"]:
 
 # Function to interact with OpenAI API
 def chat_with_ai(prompt, use_memory=False):
-    openai.api_key = st.session_state["openai_api_key"]
-    if not openai.api_key:
-        return "Error: API Key is required!"
-    
+    client = OpenAI(api_key=st.session_state["openai_api_key"])
+
     memory = []
     if use_memory and "chat_memory" in st.session_state:
         memory = st.session_state["chat_memory"]
-    
+
     messages = memory + [{"role": "user", "content": prompt}]
     try:
-        response = openai.client.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=messages
         )
         reply = response.choices[0].message.content
-    except openai.error.AuthenticationError:
+    except AuthenticationError:
         st.error("Invalid API Key! Please update your key.")
         return "Invalid API Key"
+    except OpenAIError as e:
+        st.error(f"OpenAI Error: {e}")
+        return "Error processing request"
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
         return "Error processing request"
-    
+
     if use_memory:
         st.session_state["chat_memory"] = messages + [{"role": "assistant", "content": reply}]
-    
+
     return reply
 
 # List of Use Cases with Different Colors
@@ -155,6 +159,9 @@ if "show_modal" in st.session_state and st.session_state["show_modal"]:
     st.subheader(st.session_state["active_use_case"])
     user_input = st.text_input("", key="user_input")
     if st.button("Send"):
-        response = chat_with_ai(user_input, use_memory=(st.session_state["active_use_case"] == "Chat Agent with Memory / Context of Previous Conversation"))
+        response = chat_with_ai(
+            user_input,
+            use_memory=(st.session_state["active_use_case"] == "Chat Agent with Memory / Context of Previous Conversation")
+        )
         st.text_area("AI Response:", response, height=200)
     st.markdown("""</div>""", unsafe_allow_html=True)
