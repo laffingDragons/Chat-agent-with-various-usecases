@@ -1,6 +1,6 @@
-import streamlit as st 
+import streamlit as st # type: ignore
 from openai import OpenAI, OpenAIError, AuthenticationError
-
+import uuid
 import json
 
 # Set Streamlit Page Config 
@@ -153,15 +153,24 @@ st.markdown("""</div>""", unsafe_allow_html=True)
 # Modal Chat Window
 if "show_modal" in st.session_state and st.session_state["show_modal"]:
     st.markdown("""<div class='chat-modal'>""", unsafe_allow_html=True)
-    if st.button("✖", key="close_modal"):
+
+    # Use a unique key for the close button to avoid key conflict
+    if st.button("✖", key=f"close_modal_{uuid.uuid4()}"):
         st.session_state["show_modal"] = False
         st.rerun()
+
     st.subheader(st.session_state["active_use_case"])
     user_input = st.text_input("", key="user_input")
-    if st.button("Send"):
-        response = chat_with_ai(
-            user_input,
-            use_memory=(st.session_state["active_use_case"] == "Chat Agent with Memory / Context of Previous Conversation")
-        )
+
+    if st.button("Send", key="send_button"):
+        with st.spinner("Generating AI response..."):  # ✅ Spinner added
+            response = chat_with_ai(
+                user_input,
+                use_memory=(
+                    st.session_state["active_use_case"]
+                    == "Chat Agent with Memory / Context of Previous Conversation"
+                )
+            )
         st.text_area("AI Response:", response, height=200)
+
     st.markdown("""</div>""", unsafe_allow_html=True)
